@@ -17,11 +17,25 @@ def are_tables_exist(conn: connection, *tables):
         return out
 
 
-def ips_table_create(conn: connection):
+def visits_table_create(conn: connection):
     with conn.cursor() as cursor:
-        table_create_query = ("CREATE TABLE ips "
+        table_create_query = ("CREATE TABLE visits "
                               "(id SERIAL PRIMARY KEY, ip VARCHAR(128) NOT NULL, "
                               "datetime TIMESTAMP, platform VARCHAR(256) NULL,"
                               "agent VARCHAR(512) NULL);")
         cursor.execute(table_create_query)
         conn.commit()
+        print("Таблица создана")
+
+
+def save_new_visitors(conn: connection, visitors):
+    with conn.cursor() as cursor:
+        query = ("INSERT INTO visits "
+                 "(ip, datetime, platform, agent) values "
+                 + ", ".join(f"('{visitor.ip}', "
+                             f"'{visitor.datetime}', "
+                             f"{visitor.platform}, "
+                             f"{visitor.agent})" for visitor in visitors) + ";")
+        cursor.execute(query)
+        conn.commit()
+        print("Выгружено")

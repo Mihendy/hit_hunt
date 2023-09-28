@@ -1,11 +1,11 @@
 from psycopg2.extensions import connection
 
-from data_base.queries import ips_table_create, are_tables_exist
+from data_base.queries import visits_table_create, are_tables_exist
 
 
 def initialize(conn: connection) -> None:
     tables = {
-        'ips': ips_table_create
+        'visits': visits_table_create
     }
 
     existing_tables = are_tables_exist(conn, *tables.keys())

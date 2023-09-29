@@ -36,6 +36,7 @@ def save_new_visitors(conn: connection, visitors):
                              f"'{visitor.datetime}', "
                              f"{visitor.platform}, "
                              f"{visitor.agent})" for visitor in visitors) + ";")
+        print(query)
         cursor.execute(query)
         conn.commit()
         print("Выгружено")

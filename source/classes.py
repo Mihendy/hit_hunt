@@ -1,20 +1,9 @@
 from datetime import datetime as dt
+from pydantic import BaseModel
 
 
-# TODO: реализовать класс IP так, чтобы его можно было добавлять в ЧС и писать запросы.
-class IP(object):
-
-    def __init__(self, address: str, handshake_time=dt.utcnow()):
-        self.address = address
-        self.handshake_time = handshake_time
-
-    def __eq__(self, other):
-        return self.address == other.address
-
-
-class Visitor:
-    def __init__(self, ip, platform, agent):
-        self.ip = ip
-        self.datetime = dt.utcnow()
-        self.platform = f"'{platform}'" if platform != "None" else "NULL"
-        self.agent = f"'{agent}'" if agent != "None" else "NULL"
+class Visitor(BaseModel):
+    ip: str
+    datetime: str = str(dt.utcnow())
+    platform: str = "NULL"  # optional
+    agent: str = "NULL"  # optional

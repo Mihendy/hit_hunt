@@ -10,6 +10,7 @@ from data_base.connection import DB_CONNECTION
 from data_base.queries import save_new_visitors
 
 from source.classes import Visitor
+from source.validators import str_datetime_validator, limit_validator, utc_validator
 
 banned_ips = dict()
 strange_ips = dict()
@@ -20,7 +21,12 @@ new_visitors = list()
 async def lifespan(app: FastAPI):
     # do something before the application starts taking requests
     initialize(DB_CONNECTION)
+
     yield
+
+    if new_visitors:
+        save_new_visitors(DB_CONNECTION, new_visitors)
+        new_visitors.clear()
     # do something after the application finishes handling request
 
 
@@ -66,16 +72,44 @@ async def root(request: Request):
     platform = "".join(s for s in str(headers.get("sec-ch-ua-platform")) if s.isalpha() or s.isspace())
     agent = str(headers.get("user-agent"))
     ip = request.client.host
-    data = {"message": {"platform": platform, "agent": agent, "host": ip,
-                        "datetime": dt.utcnow().strftime("%Y-%m-%d %I:%M:%S")}}
-    new_visitors.append(Visitor(ip, platform, agent))
+    data = {"message": "Your visit has been recorded."}
+
+    visitor = Visitor(ip=ip)
+    if platform != str(None):
+        visitor.platform = f"'{platform}'"
+    if agent != str(None):
+        visitor.agent = f"'{agent}'"
+
+    new_visitors.append(visitor)
+
     return JSONResponse(status_code=status.HTTP_200_OK, content=data)
 
 
 @app.get("/api/v1/get/")
-async def v1_get_visitors(limit: int = 10, utc: int = 0, unique: bool = False):
-    if new_visitors:
+async def v1_get_visitors(start: str = None, end: str = None, like: str = None, limit: int = 10,
+                          utc: float = 0, unique: bool = False):
+    errors = {}
+
+    if not str_datetime_validator(start):
+        errors["start"] = "Bad datetime format. HINT: DD-MM-YYYY:hh:mm:ss OR DD-MM-YYYY"
+
+    if not str_datetime_validator(end):
+        errors["end"] = "Bad datetime format. HINT: DD-MM-YYYY:hh:mm:ss OR DD-MM-YYYY"
+
+    if not limit_validator(limit):
+        errors["limit"] = "Bad number. HINT: 1 ≤ limit ≤ 100 and integer"
+
+    if not utc_validator(utc):
+        errors["utc"] = "Bad UTC format. (EXAMPLE: utc=1 OR utc=-3.5)"
+
+    if new_visitors and not errors:
         save_new_visitors(DB_CONNECTION, new_visitors)
         new_visitors.clear()
+
     data = {"message": None}
-    return JSONResponse(status_code=status.HTTP_200_OK, content=data)
+
+    if not errors:
+        return JSONResponse(status_code=status.HTTP_200_OK, content=data)
+    else:
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
+                            content={"message": "Bad request", "errors": errors})

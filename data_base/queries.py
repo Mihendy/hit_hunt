@@ -25,7 +25,6 @@ def visits_table_create(conn: connection):
                               "agent VARCHAR(512) NULL);")
         cursor.execute(table_create_query)
         conn.commit()
-        print("Таблица создана")
 
 
 def save_new_visitors(conn: connection, visitors):
@@ -36,7 +35,5 @@ def save_new_visitors(conn: connection, visitors):
                              f"'{visitor.datetime}', "
                              f"{visitor.platform}, "
                              f"{visitor.agent})" for visitor in visitors) + ";")
-        print(query)
         cursor.execute(query)
         conn.commit()
-        print("Выгружено")

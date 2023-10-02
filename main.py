@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from data_base.sql_init import initialize
 from data_base.connection import DB_CONNECTION
-from data_base.queries import save_new_visitors
+from data_base.queries import save_new_visitors, raw_visitors_selection, get_visitors_statistic
 
 from source.classes import Visitor, Filter
 
@@ -21,7 +21,7 @@ new_visitors = list()
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    """Жизненный цикл приложения"""
+    """Application lifecycle"""
     # do something before the application starts taking requests
     initialize(DB_CONNECTION)
 
@@ -39,8 +39,9 @@ app = FastAPI(lifespan=lifespan)
 @app.exception_handler(ValidationError)
 @app.exception_handler(RequestValidationError)
 async def value_error_exception_handler(request: Request, exc: ValidationError):
-    """Обработчик ошибок возникших в процессе валидации"""
-    error = [{"type": err["type"], "loc": str(*err["loc"]),
+    """Error handler for validation process"""
+    error = [{"type": err["type"],
+              "loc": str(err["loc"]).replace("(", "").replace(",)", "").replace(")", ""),
               "msg": err["msg"].replace("Value error, ", ""),
               "input": err["input"]} for err in exc.errors()]
 
@@ -52,7 +53,7 @@ async def value_error_exception_handler(request: Request, exc: ValidationError):
 
 @app.middleware("http")
 async def validate_ip(request: Request, call_next):
-    """Простая защита от большого количества запросов за короткий промежуток времени по IP"""
+    """Easy protection against large number of requests in short time by IP"""
     ip = str(request.client.host)
     now = dt.utcnow()
 
@@ -63,7 +64,7 @@ async def validate_ip(request: Request, call_next):
             strange_ips.pop(ip, None)
             return await call_next(request)
 
-        data = {"message": f"IP {ip} was temporarily banned."}
+        data = {"message": f"You was temporarily banned."}
         return JSONResponse(status_code=status.HTTP_403_FORBIDDEN, content=data)
 
     if ip in strange_ips:
@@ -83,7 +84,7 @@ async def validate_ip(request: Request, call_next):
 
 @app.get("/")
 async def root(request: Request):
-    """Страница на которой засчитываются посещения"""
+    """Page on which visits count"""
     headers = request.headers
     platform = "".join(s for s in str(headers.get("sec-ch-ua-platform")) if s.isalpha() or s.isspace())
     agent = str(headers.get("user-agent"))
@@ -101,11 +102,20 @@ async def root(request: Request):
     return JSONResponse(status_code=status.HTTP_200_OK, content=data)
 
 
-@app.get("/api/v1/get/")
+@app.get("/api/v1/get")
 async def v1_get_visitors(request: Request, filters: Filter = Depends()):
-    """Страница с API v1"""
+    """API V1 page that returns raw site visitor information by filters"""
     if new_visitors:
         save_new_visitors(DB_CONNECTION, new_visitors)
         new_visitors.clear()
-    data = {"message": filters.model_dump(mode="json")}
+    mode = filters.mode
+    if mode == "raw":
+        data = raw_visitors_selection(DB_CONNECTION, filters)
+    elif mode == "stat":
+        data = get_visitors_statistic(DB_CONNECTION, filters)
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": "'mode' is not chosen"}
+        )
     return JSONResponse(status_code=status.HTTP_200_OK, content=data)

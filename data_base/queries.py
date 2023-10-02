@@ -1,4 +1,8 @@
+from datetime import datetime
+
 from psycopg2.extensions import connection
+
+from source.functions import get_statistic_by
 
 
 def are_tables_exist(conn: connection, *tables):
@@ -37,3 +41,52 @@ def save_new_visitors(conn: connection, visitors):
                              f"{visitor.agent})" for visitor in visitors) + ";")
         cursor.execute(query)
         conn.commit()
+
+
+def raw_visitors_selection(conn: connection, filters):
+    utc = f"'{str(filters.utc).replace('.5', ':30').replace('.0', ':00')}'"
+    limit, skip = filters.limit, filters.skip
+    start, end, like = filters.start, filters.end, filters.like
+
+    query = f"SELECT ip, datetime AT TIME ZONE {utc}, platform, agent FROM visits WHERE TRUE"
+    if start is not None:
+        query += f" AND datetime >= '{filters.start}'"
+    if end is not None:
+        query += f" AND datetime <= '{filters.end}'"
+    if like is not None:
+        query += f" AND platform ILIKE '%{filters.like}%'"
+    query += f" OFFSET {skip}"
+    query += f" LIMIT {limit};"
+
+    with conn.cursor() as cursor:
+
+        cursor.execute(query)
+        result = cursor.fetchall()
+        datetime.now()
+        data = list(map(lambda x: dict([('ip', x[0]), ('session_time', x[1].strftime("%d-%m-%Y %H:%M:%S")),
+                                        ('platform', x[2]), ('agent', x[3])]), result))
+        return data
+
+
+def get_visitors_statistic(conn: connection, filters):
+    utc = f"'{str(filters.utc).replace('.5', ':30').replace('.0', ':00')}'"
+    start, end, like = filters.start, filters.end, filters.like
+    query = f"SELECT ip, datetime AT TIME ZONE {utc}, platform, agent FROM visits WHERE TRUE"
+    if start is not None:
+        query += f" AND datetime >= '{filters.start}'"
+    if end is not None:
+        query += f" AND datetime <= '{filters.end}'"
+    if like is not None:
+        query += f" AND platform ILIKE '%{filters.like}%'"
+
+    with conn.cursor() as cursor:
+        cursor.execute(query)
+        result = cursor.fetchall()
+        raw_data = list(map(lambda x: dict([("ip", x[0]), ("session_time", x[1]),
+                                            ("platform", x[2]), ("agent", x[3])]), result))
+
+        data = {"ips": get_statistic_by("ip", raw_data),
+                "platforms": get_statistic_by("platform", raw_data),
+                "agents": get_statistic_by("agent", raw_data)}
+
+        return data

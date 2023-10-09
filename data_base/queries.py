@@ -63,9 +63,9 @@ def raw_visitors_selection(conn: connection, filters):
         cursor.execute(query)
         result = cursor.fetchall()
         datetime.now()
-        data = list(map(lambda x: dict([('ip', x[0]), ('session_time', x[1].strftime("%d-%m-%Y %H:%M:%S")),
-                                        ('platform', x[2]), ('agent', x[3])]), result))
-        return data
+    data = list(map(lambda x: dict([('ip', x[0]), ('session_time', x[1].strftime("%d-%m-%Y %H:%M:%S")),
+                                    ('platform', x[2]), ('agent', x[3])]), result))
+    return data
 
 
 def get_visitors_statistic(conn: connection, filters):
@@ -82,11 +82,11 @@ def get_visitors_statistic(conn: connection, filters):
     with conn.cursor() as cursor:
         cursor.execute(query)
         result = cursor.fetchall()
-        raw_data = list(map(lambda x: dict([("ip", x[0]), ("session_time", x[1]),
-                                            ("platform", x[2]), ("agent", x[3])]), result))
+    raw_data = list(map(lambda x: dict([("ip", x[0]), ("session_time", x[1]),
+                                        ("platform", x[2]), ("agent", x[3])]), result))
 
-        data = {"ips": get_statistic_by("ip", raw_data),
-                "platforms": get_statistic_by("platform", raw_data),
-                "agents": get_statistic_by("agent", raw_data)}
+    data = {"ips": get_statistic_by("ip", raw_data),
+            "platforms": get_statistic_by("platform", raw_data),
+            "agents": get_statistic_by("agent", raw_data)}
 
-        return data
+    return data

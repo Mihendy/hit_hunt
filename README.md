@@ -58,7 +58,7 @@ curl 127.0.0.1:8000/api/v1/get?limit=1&skip=5&like=windows
 `stat` запрос:
 
 ```shell
-curl 127.0.0.1:8000/api/v1/get?limit=1&skip=5&like=windows
+curl 127.0.0.1:8000/api/v1/get?limit=1&skip=5&like=windows&mode=stat
 ```
 
 Ответ заголовка `Content` в формате `JSON` по ключу `ips`:
